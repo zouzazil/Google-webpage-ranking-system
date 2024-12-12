@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Web Page Ranking</title>
+</head>
+<style>
+    body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #fefcea;
+    }
+    .header {
+        background-color: #4a90e2;
+        color: white;
+        padding: 50px 0;
+    }
+    .title {
+        font-size: 50px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .container {
+        margin-top: 20px;
+    }
+    button {
+        margin-top: 20px;
+        background-color: #4a90e2;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 18px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #357ab7;
+    }
+    .blue-box, #linear-system, #ranking-result, #final-rankings, #connections{
+        background-color: #d8e9f7;
+        width: 50%;
+        margin: 20px auto;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .flex-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        margin-bottom: 15px;
+    }
+    .flex-row label {
+        width: 50%;
+        text-align: right;
+        margin-right: 10px;
+        font-weight: bold;
+        font-size: 18px;
+    }
+    .flex-row input {
+        width: 50%;
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #dcdcdc;
+        border-radius: 5px;
+        background-color: #e6f0fc;
+    }
+    #linear-system, #ranking-result, #final-rankings {
+        display: none;
+        margin-top: 20px;
+    }
+    .result-box {
+        background-color: #ffffff;
+        border: 1px solid #dcdcdc;
+        border-radius: 10px;
+        width: 60%;
+        margin: 20px auto;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+</style>
+<body>
+    <div class="header">
+        <div class="title">Google Web Page Ranking</div>
+    </div>
+
+    <div id="page1" class="container">
+        <label for="num-pages">Number of Webpages:</label>
+        <select id="num-pages" name="num-pages">
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select><br>
+        <button onclick="goToSecondPage()">Set Webpages</button>
+    </div>
+
+    <div id="page2" style="display: none;">
+        <div class="blue-box">
+            <div id="dynamic-container"></div>
+            <center><button id="display-connections-btn" style="display: none;" onclick="displayConnections()">Display Webpage Connections</button></center>
+    </div>
+        
+    <div id="connnections" class="blue-box" style="display: none;">
+        <h3>Webpage Connections:</h3>
+        <p id="connections-content"></p>
+        <center><button id="solve-linear-btn" style="display: none;" onclick="solveLinearSystem()">Solve for Linear System</button></center>
+    </div>
+    
+    <div id="linear-system" class="result-box">
+        <h3>Linear System:</h3>
+        <p id="linear-system-content"></p>
+        <center><button id="show-ranking-btn" style="display: none;" onclick="showRanking()">Get RREF</button></center>
+    </div>
+
+    <div id="ranking-result" class="result-box">
+        <h3>RREF:</h3>
+        <p id="ranking-result-content"></p>
+        <center><button id="final-rankings-btn" style="display: none;" onclick="getFinalRankings()">Get Webpage Rankings</button></center>
+    </div>
+
+    <div id="final-rankings" class="result-box">
+        <h3>FINAL RANKINGS:</h3>
+        <p id="final-ranking-result"></p>
+        <center><button id="restart-btn" style="display: none;" onclick="restartProgram()">Reset</button></center>
+    </div>
+<script>
+    let totalWebpages = 0; // track # of webpages
+let linkedPages = [];  // array for set of links
+let outgoingPages = []; // array for # of links going out
+let equations = []; // array for final equations
+
+function goToSecondPage() {
+    totalWebpages = parseInt(document.getElementById("num-pages").value);
+    document.getElementById("page1").style.display = "none";
+    document.getElementById("page2").style.display = "block";
+    showLinksToWebpage(0);
+    console.log("Total webpages: "+ totalWebpages);
+}
+
+function showLinksToWebpage(currentPageIndex) {
+    const dynamicContainer = document.getElementById("dynamic-container");
+    const webpage = String.fromCharCode(65 + currentPageIndex); // determine the current webpage
+    console.log("Webpage: " + webpage);
+    const flexRow = document.createElement("div");
+    flexRow.className = "flex-row";
+
+    const label = document.createElement("label");
+    label.textContent = `Number of links going to ${webpage}:`;
+    const input = document.createElement("input");
+    input.type = "text"; 
+
+    const maxLinks = totalWebpages === 4 ? 3 : 4;
+
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            const inputValue = input.value.trim(); // remove extra spaces
+            const linksToPage = Number(inputValue); // convert input to number
+
+            if (
+                inputValue === "" || isNaN(linksToPage) || linksToPage < 0 || linksToPage > maxLinks || !Number.isInteger(linksToPage)   
+            ) {
+                alert(`Please enter a whole number between 0 and ${maxLinks}.`);
+            } else {
+                console.log("Number of links going to " + webpage + ": " + linksToPage);
+                if (linksToPage === 0) {
+                    const nextPageIndex = currentPageIndex + 1;
+                    if (nextPageIndex < totalWebpages) {
+                        showLinksToWebpage(nextPageIndex); 
+                    }
+                } else {
+                    showSetLinks(webpage, linksToPage, currentPageIndex); 
+                }
+            }
+        }
+    });
+
+    flexRow.appendChild(label);
+    flexRow.appendChild(input);
+    dynamicContainer.appendChild(flexRow);
+}
+
+function showSetLinks(webpage, linksToPage, currentPageIndex) {
+    const dynamicContainer = document.getElementById("dynamic-container");
+    const setOfLinksLabel = document.createElement("label");
+    setOfLinksLabel.textContent = `Set of Pages going to ${webpage}:`;
+    dynamicContainer.appendChild(setOfLinksLabel);
+
+    // to check entered webpages 
+    const validPages = getValidPages(webpage);
+    console.log(validPages);
+
+    // create input fields based on the set of links
+    for (let i = 0; i < linksToPage; i++) {
+        const inputRow = document.createElement("div");
+        inputRow.className = "flex-row";
+        const linkLabel = document.createElement("label");
+        linkLabel.textContent = `Link ${i + 1}:`;
+
+        const linkInput = document.createElement("input");
+        linkInput.type = "text";
+        linkInput.id = `link-to-${webpage}-${i}`;
+        linkInput.placeholder = `Enter Webpage ${i + 1}`;
+
+        // storing linkedPages
+        linkInput.addEventListener("input", (event) => {  // to allow reset
+            const value = event.target.value.toLowerCase();  // to accept both lower and uppercase
+
+            // check valid pages per selected webpage
+            if (!validPages.some(page => page.toLowerCase() === value)) {  //to accept both upper and lower case
+                alert(`Invalid link. Please choose from ${validPages.join(', ')}, excluding ${webpage}.`);
+                return;
+            }
+
+            // check for duplicate webpages
+            if (!linkedPages[currentPageIndex]) linkedPages[currentPageIndex] = [];  // create an array if it is a new input
+            if (!linkedPages[currentPageIndex].includes(value)) { // if already exists, add to the existing array
+                linkedPages[currentPageIndex].push(value);
+                console.log(i + 1 + " Linked page to " + webpage + ": " + value);
+            } else {
+                alert(`Duplicate entry found for ${value}. Please enter another link.`);
+            }
+        });
+
+        // continue to next webpages
+        linkInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                if (i === linksToPage - 1) {
+                    showOutgoingLinks(webpage, currentPageIndex); // once all links are input, show outgoing links
+                }
+            }
+        });
+
+        inputRow.appendChild(linkLabel);
+        inputRow.appendChild(linkInput);
+        dynamicContainer.appendChild(inputRow);
+    }
+}
+
+function getValidPages(webpage) {
+            const allPages = totalWebpages === 4 ? ['A', 'B', 'C', 'D', 'a', 'b', 'c', 'd'] : ['A', 'B', 'C', 'D', 'E', 'a', 'b', 'c', 'd', 'e'];
+            const normalizedWebpage = webpage.toLowerCase();  
+            return allPages.filter(page => page.toLowerCase() !== normalizedWebpage);  // Compare all pages in lowercase
+}
+
+function showOutgoingLinks(webpage, currentPageIndex) {
+    const dynamicContainer = document.getElementById("dynamic-container");
+
+    if (!outgoingPages[currentPageIndex]) outgoingPages[currentPageIndex] = []; // array for outgoingPages
+    if (!window.outgoingPagesTracker) window.outgoingPagesTracker = {}; //  global tracker for outgoingPages
+    //inputs
+    linkedPages[currentPageIndex].forEach((linkedPage, index) => {
+        if (linkedPage) {
+            const outgoingRow = document.createElement("div");
+            outgoingRow.className = "flex-row";
+
+            const label = document.createElement("label");
+            label.textContent = `Outgoing links from ${linkedPage}:`;
+
+            const input = document.createElement("input");
+            input.type = "number";
+            input.id = `outgoing-${webpage}-${index}`;
+            input.placeholder = `Enter outgoing pages from ${linkedPage}`;
+
+            // pre-fill outgoingPages
+            if (outgoingPagesTracker[linkedPage] !== undefined) {
+                input.value = outgoingPagesTracker[linkedPage];
+
+                outgoingPages[currentPageIndex][index] = outgoingPagesTracker[linkedPage]; // store pre-filled input to outgoingPages array
+            }
+            
+            totalWebpages = parseInt(document.getElementById("num-pages").value);
+
+            input.addEventListener("input", () => {
+                const outgoingPagesValue = parseInt(input.value, 10); 
+
+                if (outgoingPagesValue<=0 || outgoingPagesValue >= totalWebpages ) {
+                    alert("Please enter a positive number lesser than the total webpages selected.");
+                    input.value = outgoingPagesTracker[linkedPage] || ""; 
+                    return;
+                }
+
+                // checks consistency of outgoingPages value (if ever ma change yung value ng global tracker)
+                if (
+                    outgoingPagesTracker[linkedPage] !== undefined &&
+                    outgoingPagesTracker[linkedPage] !== outgoingPagesValue
+                ) {
+                    alert(
+                        `Inconsistent value! Outgoing links from ${linkedPage} should be ${outgoingPagesTracker[linkedPage]}.`
+                    );
+                    input.value = outgoingPagesTracker[linkedPage]; // Reset input value to global tracker value
+                    return;
+                }
+
+                outgoingPagesTracker[linkedPage] = outgoingPagesValue;
+                outgoingPages[currentPageIndex][index] = outgoingPagesValue;
+
+                console.log(`Stored value for ${linkedPage}:`, outgoingPagesValue);
+                console.log(`Global tracker:`, outgoingPagesTracker);
+            });
+
+            input.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    if (index === linkedPages[currentPageIndex].length - 1) {
+                        if (currentPageIndex + 1 < totalWebpages) {
+                            showLinksToWebpage(currentPageIndex + 1);
+                        } else {
+                            document.getElementById("display-connections-btn").style.display = "block";
+                        }
+                    }
+                }
+            });
+
+            outgoingRow.appendChild(label);
+            outgoingRow.appendChild(input);
+            dynamicContainer.appendChild(outgoingRow);
+        }
+    });
+}
+
+function displayConnections() {
+    const connectionsContent = document.getElementById("connections-content");
+    connectionsContent.innerHTML = ""; 
+
+    for (let i = 0; i < totalWebpages; i++) {
+        const webpage = String.fromCharCode(65 + i);
+        let equation = `${webpage} = 0.5 + 0.5 (`;
+
+        if (!linkedPages[i] || linkedPages[i].length === 0) {
+            equation += "0";
+        } else {
+            let incomingLinks = linkedPages[i]
+                .map((linkedPage, index) => {
+                    const outgoingPage = outgoingPages[i] ? outgoingPages[i][index] : 0;
+                    if (linkedPage && outgoingPage > 0) {
+                        return `${linkedPage}/${outgoingPage}`;
+                    }
+                    return '';
+                })
+                .filter(Boolean) // remove empty terms
+                .join(" + ");
+
+            equation += incomingLinks || "0"; // handle empty incoming links
+        }
+
+        equation += ")";
+        connectionsContent.innerHTML += equation + "<br>";
+    }
+
+    document.getElementById("connnections").style.display = "block";
+    document.getElementById("solve-linear-btn").style.display = "block"; 
+}
+
+function solveLinearSystem() {
+    console.log("final linkedPages: " + JSON.stringify(linkedPages));
+    console.log("final outgoingPages: " + JSON.stringify(outgoingPages));
+
+    for (let i = 0; i < totalWebpages; i++) {
+        const webpage = String.fromCharCode(65 + i);
+        let equation = `${webpage} = 0.5 + 0.5 (`;
+        // B(wi) / L(wi)
+        const incomingLinks = (!linkedPages[i] || linkedPages[i].length === 0)
+            ? [] 
+            : linkedPages[i]
+                .map((linkedPage, index) => {
+                    const outgoingPage = outgoingPages[i] ? outgoingPages[i][index] : 0;
+                    if (linkedPage && outgoingPage > 0) {
+                        return `${linkedPage}/${outgoingPage}`;
+                    }
+                    return '';
+                })
+                .filter(Boolean); // separate with + and avoid empty arrays
+
+        equation += incomingLinks.length > 0 ? incomingLinks.join(" + ") : "0";
+        equation += ")";
+
+        console.log(`Equation for ${webpage}: ${equation}`);
+        // 0.5 * [B(wi) / L(wi)]
+        let weightedLinks = "";
+        if (incomingLinks.length > 0) {
+            // Multiply terms by 0.5
+            weightedLinks = incomingLinks
+                .map(term => multiplyFraction(term))
+                .join(" + ");
+        }
+
+         // 0.5 + 0.5 * [B(wi) / L(wi)]
+        const fullEquation = `0.5 + ${weightedLinks || '0'}`; // Default to '0' if no weighted links
+
+        if (incomingLinks.length === 0) {
+            const finalEquation = `${webpage} = 0.5`;
+            const lcm = findLCM(finalEquation);
+            const scaledEquation = `${2}${webpage} = ${2 * 0.5}`;
+            const standardForm = convertToStandardForm(scaledEquation, webpage);
+            equations.push(standardForm);
+            continue; // skip further steps for this webpage
+        }
+         // [rank = 0.5 + 0.5 * [B(wi) / L(wi)]] * LCM
+        const lcm = findLCM(fullEquation);
+        const scaledEquation = `${lcm}${webpage} = ` + fullEquation
+            .replace(/([a-zA-Z]+\/\d+)/g, match => {
+                const [num, den] = match.split("/");
+                console.log("Num: " + num + " Den: " + den);
+                if (isNaN(Number(num))) {
+                    const simplifiedNum = lcm / den;
+                    return `${simplifiedNum} * ${num}`;
+                } else {
+                    const simplifiedNum = (Number(num) * lcm) / den;
+                    return `${simplifiedNum}`;
+                }
+            })
+            .replace(/0.5/g, `${lcm * 0.5}`) // 0.5 * LCM
+            .replace(/([A-Z])/g, `${lcm}$1`); // ranks * LCM
+            console.log("Scaled Equation: ", scaledEquation);
+
+        const finalEquation = scaledEquation
+            .replace(/\s\*\s/g, '') // Remove redundant multiplications 
+            .replace(/\(([0-9A-Za-z]+)\)/g, '$1'); // Simplify parentheses
+
+        console.log(`Final Equation for ${webpage}: ${finalEquation}`);
+        const standardForm = convertToStandardForm(finalEquation, webpage);
+        equations.push(standardForm);
+    }
+
+   // display
+    document.getElementById("linear-system-content").innerHTML = equations.join("<br>");
+    document.getElementById("linear-system").style.display = "block";
+    document.getElementById("show-ranking-btn").style.display = "block";
+
+    console.log("All Final Equations:");
+    equations.forEach((eq, index) => console.log(`${index + 1}: ${eq}`));
+}
+
+function multiplyFraction(fraction) {
+    // get numerator and denominator
+    const match = fraction.match(/([a-zA-Z]+)\/(\d+)/);
+    if (match) {
+        const variable = match[1];  // get the variable 
+        const denominator = parseInt(match[2], 10);  // get the denominator 
+
+        //0.5 * [B(wi) / L(wi)]
+        return `${variable}/${denominator * 2}`; 
+    }
+    return fraction; 
+}
+
+function findLCM(equation) {
+    const denominators = [];
+    const regex = /\/(\d+)/g; // check for fractions
+    let match;
+
+    while ((match = regex.exec(equation)) !== null) { 
+        denominators.push(parseInt(match[1])); // get denominators as an integer
+    }
+
+    if (denominators.length === 0) return 1; // return 1 if no denominators
+
+    // helper functions
+    function gcd(a, b) { 
+        while (b !== 0) {
+            const temp = b;
+            b = a % b;
+            a = temp;
+        }
+        return a;
+    }
+
+    function lcm(a, b) {
+        return (a * b) / gcd(a, b);
+    }
+
+    return denominators.reduce((acc, val) => lcm(acc, val), 1);
+}
+
+function convertToStandardForm(equation, webpage) {
+    // left-hand side = right-hand side
+    const [lhs, rhs] = equation.split("="); 
+    console.log("Converting to standard form - LHS: " + lhs + ", RHS: " + rhs);
+
+    // collect all terms from RHS
+    const rhsTerms = rhs.split(" + ").map(term => term.trim());
+    const variableTerms = [];
+    const constantTerms = [];
+
+    // separate variables and constants
+    rhsTerms.forEach(term => {
+        if (/[a-zA-Z]/.test(term)) {
+            variableTerms.push(`-${term.toUpperCase()}`); 
+        } else {
+            constantTerms.push(term); 
+        }
+    });
+
+    // move variables to LHS 
+    const lhsTerms = lhs.split(" + ").map(term => term.trim());
+    lhsTerms.forEach(term => {
+        if (/[a-zA-Z]/.test(term)) {
+            variableTerms.push(`+${term.toUpperCase()}`); 
+        }
+    });
+
+    // arranging to alphabetical order (ignoring coefficients/signs)
+    variableTerms.sort((A, B) => {
+        const variableA = A.replace(/[^A-Za-z]/g, ''); //to extract variables, para di masali yung signs and numbers
+        const variableB = B.replace(/[^A-Za-z]/g, '');
+        return variableA.localeCompare(variableB); // alphabetical order
+    });
+
+    console.log("Sorted Variable Terms: " + variableTerms);
+    const newLHS = `${variableTerms.join(" ")}`.trim(); // group terms on LHS
+    const newRHS = constantTerms.join(" + ").trim(); // join constants on RHS
+
+    //  variables = constant
+    const standardForm = `${newLHS} = ${newRHS}`;
+    return standardForm.replace(/\s+/g, ' '); 
+}
+
+function getAugmentedMatrix(equations) {
+    const augmentedMatrix = [];
+    let variables=[];
+    totalWebpages = parseInt(document.getElementById("num-pages").value);
+    if(totalWebpages==4){
+        variables = ['A', 'B', 'C', 'D'];
+    }
+    else if(totalWebpages==5){
+        variables = ['A', 'B', 'C', 'D','E'];
+    }
+    // iterate over each equation to create the matrix
+    equations.forEach((equation) => {
+        // split equation into LHS and RHS
+        const [lhs, rhs] = equation.split("=");
+        const lhsTerms = lhs.trim().split(" ").filter(Boolean);
+        const rhsValue = parseFloat(rhs.trim());
+        let row = [];
+        // initialize row with 0s for all variables
+        variables.forEach(() => row.push(0));
+        // get coefficients
+        lhsTerms.forEach(term => {
+            const match = term.match(/([+-]?\d*)([a-zA-Z]+)/); // match coefficients and variables
+            if (match) {
+                const coeff = match[1] === '' || match[1] === '+' ? 1 :
+                             match[1] === '-' ? -1 :
+                             parseInt(match[1]);
+                const variable = match[2].toUpperCase();
+                // if the variable exists, update its coefficient
+                const varIndex = variables.indexOf(variable);
+                if (varIndex !== -1) {
+                    row[varIndex] = coeff; // set the coefficient
+                }
+            }
+        });
+        // add constant to the row
+        row.push(rhsValue);
+        // Add the row to the augmented matrix
+        augmentedMatrix.push(row);
+    });
+    return augmentedMatrix;
+}
+
+function showRanking() {
+    console.log("Show Ranking function is called");
+    const augmentedMatrix = getAugmentedMatrix(equations);
+    console.log("Generated Augmented Matrix:", augmentedMatrix);
+
+    document.getElementById("ranking-result").style.display = "block";
+    document.getElementById("ranking-result-content").style.display = "block"; 
+
+    rref(augmentedMatrix);
+}
+let finalMatrix=null;
+
+function rref(matrix) {
+    const rowCount = matrix.length; // rows in matrix
+    const colCount = matrix[0].length; // columns in matrix
+    let lead = 0; // "leading column", starting with the first column
+    console.log("Initial Matrix:");
+    logMatrix(matrix); 
+    displayMatrix(matrix); // console kineme
+
+    // process each row
+    for (let r = 0; r < rowCount; r++) {
+        if (lead >= colCount) return matrix; // all columns have been processed
+
+        let i = r; // initialize variable i with current row index
+
+        // find row (starting at row r) where lead column has a non-zero value
+        while (matrix[i][lead] === 0) {
+            i++; // move to the next row if the lead is 0 (can't perform row operations)
+            if (i === rowCount) { // processed all rows(no non zero val found as lead)
+                i = r; // reset to the current row (search for non zero val in next column)
+                lead++; // move to the next column
+                if (lead === colCount) return matrix; // all columns have been processed
+            }
+        }
+
+        // SWAP : swap current row (r) with row (i) having a non-zero entry in the lead column
+        if (i !== r) { 
+            [matrix[i], matrix[r]] = [matrix[r], matrix[i]]; //swap the two rows to get pivot
+
+            appendRowOperation(`R${r + 1} <--> R${i + 1}`); // swap operation text
+            displayMatrix(matrix); // display the matrix after swapping rows
+        }
+
+        // SCALING to get pivot as 1
+        const lv = matrix[r][lead]; // leading value in the current row
+        for (let j = 0; j < colCount; j++) {  //goes through elements row by row
+            matrix[r][j] /= lv; // divide each element in the row by the leading value
+        }
+        appendRowOperation(`R${r + 1} → R${r + 1} / ${lv.toFixed(2)}`); // display step
+        displayMatrix(matrix);
+
+        //eliminate non-zero values in the leading column
+        for (let i = 0; i < rowCount; i++) {
+            if (i !== r) { 
+                const lv = matrix[i][lead]; // value in the lead column for row i
+                //loop through each column
+                for (let j = 0; j < colCount; j++) { 
+                    matrix[i][j] -= lv * matrix[r][j]; // subtract the scaled value of row r from  row i
+                }
+                appendRowOperation(`R${i + 1} → R${i + 1} - (${lv.toFixed(2)}) * R${r + 1}`); // display step
+                displayMatrix(matrix); 
+            }
+        }
+        lead++; // move to the next column for the next iteration
+    }
+
+    console.log("Final Reduced Row Echelon Form:");
+    logMatrix(matrix); // console
+
+    appendRowOperation("<b>Final Reduced Row Echelon Form</b>"); // 
+    displayMatrix(matrix); // display RREF matrix 
+
+    finalMatrix = matrix;
+    document.getElementById("final-rankings-btn").style.display = "block";
+
+    return matrix;
+}
+
+// log the matrix in console
+function logMatrix(matrix) {
+    matrix.forEach(row => console.log(row.map(x => x.toFixed(2)).join("\t")));
+    console.log(); // Add an empty line for better readability
+}
+
+// display the matrix in the HTML
+function displayMatrix(matrix) {
+    totalWebpages = parseInt(document.getElementById("num-pages").value);
+    let table = ""; // Declare the table variable outside the if-else block
+
+    if (totalWebpages == 4) {
+        table = "<table border='3' style='margin: 0 auto; text-align: center; border-collapse: collapse;'><tr><th>A</th><th>B</th><th>C</th><th>D</th><th>Constant</th></tr>";
+    } else if (totalWebpages == 5) {
+        table = "<table border='3' style='margin: 0 auto; text-align: center; border-collapse: collapse;'><tr><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>Constant</th></tr>";
+    }
+
+    // Add rows for the matrix
+    matrix.forEach(row => {
+        table += "<tr>";
+        row.forEach(cell => {
+            table += `<td>${cell.toFixed(2)}</td>`; // display each cell rounded to 2 decimal places
+        });
+        table += "</tr>";
+    });
+    table += "</table>";
+
+    const resultContent = document.getElementById("ranking-result-content");
+    resultContent.innerHTML += table; // Append the current matrix as a table to the HTML
+}
+
+// row operation text to the HTML
+function appendRowOperation(operation) {
+    const resultContent = document.getElementById("ranking-result-content");
+    resultContent.innerHTML += `<p>${operation}</p>`; // Append the operation description
+}
+
+function getFinalRankings() { 
+    document.getElementById("final-rankings").style.display = "block";
+
+    if (!finalMatrix || finalMatrix.length === 0) {
+        console.error("Matrix is undefined or empty.");
+        return; // Exit the function if matrix is invalid
+    }
+
+    const totalWebpages = parseInt(document.getElementById("num-pages").value);
+    let result = "";
+
+    // Declare the rankings array
+    let rankings = [];
+
+    // Populate the rankings array based on the number of webpages
+    if (totalWebpages == 4) {
+        rankings = [
+            { name: "Webpage A", rank: finalMatrix[0][4] },
+            { name: "Webpage B", rank: finalMatrix[1][4] },
+            { name: "Webpage C", rank: finalMatrix[2][4] },
+            { name: "Webpage D", rank: finalMatrix[3][4] }
+        ];
+    } else if (totalWebpages == 5) {
+        rankings = [
+            { name: "Webpage A", rank: finalMatrix[0][5] },
+            { name: "Webpage B", rank: finalMatrix[1][5] },
+            { name: "Webpage C", rank: finalMatrix[2][5] },
+            { name: "Webpage D", rank: finalMatrix[3][5] },
+            { name: "Webpage E", rank: finalMatrix[4][5] }
+        ];
+    }
+
+    // sort the rankings by comparing each element
+
+    //outer loop: iterate through each element in rankings array
+    for (let i = 0; i < rankings.length; i++) {
+        //inner loop: compare current element with all elements after it
+        for (let j = i + 1; j < rankings.length; j++) {
+            //check if current element's rank < the next element's rank
+            if (rankings[i].rank < rankings[j].rank) {
+                //swap if next element's rank is greater
+                let temp = rankings[i];
+                rankings[i] = rankings[j];
+                rankings[j] = temp;
+            }
+        }
+    }
+
+    let displayedRank = 0; // initialize the displayed rank
+    let resultRank = ""; // To hold the final ranking results
+    
+    for (let i = 0; i < rankings.length; i++) {
+        // current rank is the same as the previous rank, assign the same displayed rank
+        if (i > 0 && rankings[i].rank === rankings[i - 1].rank) {
+            resultRank += `<p>Rank ${displayedRank}: ${rankings[i].name} with a rank of ${rankings[i].rank.toFixed(2)}</p>`;
+        } else {
+            // increment rank and assign
+            displayedRank++;
+            resultRank += `<p>Rank ${displayedRank}: ${rankings[i].name} with a rank of ${rankings[i].rank.toFixed(2)}</p>`;
+        }
+    
+    }
+    // Output the rankings to the div
+    const rankingResultContent = document.getElementById("final-ranking-result");
+    rankingResultContent.innerHTML = resultRank;
+
+    document.getElementById("restart-btn").style.display = "block";
+}
+
+function restartProgram() {
+    totalWebpages = 0; // track # of webpages
+    linkedPages = [];  // array for set of links
+    outgoingPages = []; // array for # of links going out\
+    equations = []; // array for final equations
+    outgoingPagesTracker={};
+
+    document.getElementById('page1').style.display = 'block'; 
+    document.getElementById('page2').style.display = 'none'; 
+
+    // reset all dynamically added elements
+    document.getElementById('dynamic-container').innerHTML = '';
+    document.getElementById('connections-content').innerText = '';
+    document.getElementById('linear-system-content').innerText = '';
+    document.getElementById('ranking-result-content').innerText = '';
+    document.getElementById('final-ranking-result').innerText = '';
+
+    // hide all result sections
+    document.getElementById('connnections').style.display = 'none';
+    document.getElementById('linear-system').style.display = 'none';
+    document.getElementById('ranking-result').style.display = 'none';
+    document.getElementById('final-rankings').style.display = 'none';
+
+    // reset visibility of buttons
+    document.getElementById('display-connections-btn').style.display = 'none';
+    document.getElementById('solve-linear-btn').style.display = 'none';
+    document.getElementById('show-ranking-btn').style.display = 'none';
+    document.getElementById('final-rankings-btn').style.display = 'none';
+    document.getElementById('restart-btn').style.display = 'none';
+}
+
+</script>
+</body>
+</html>
